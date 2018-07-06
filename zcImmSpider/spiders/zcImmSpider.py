@@ -4,7 +4,6 @@ import json
 import requests
 from scrapy.http import Request
 from scrapy.selector import Selector
-from ..db.MySqlItems import TeamScoreItem
 from ..db.MySqlItems import LSItem
 from ..db.MySqlItems import MatchDataItem
 from ..db.MySqlItems import RqOddsItem
@@ -199,7 +198,6 @@ class zcImmSpider(scrapy.Spider):
                             ssName = shtml.xpath('//div[@class="ldrop_bd"]//li[@class="ldrop_list_on"]/a/text()').extract()[0]
                             url = 'http://liansai.500.com/index.php?c=match&a=getmatch&sid={0}&round=1'.format(sid)
                             yield Request(url=url, callback=self.parseLsData, meta={'lsName': lsItem['mLsName'], 'sid': sid, 'ssName': ssName, 'pageindex': 1})
-                            # yield Request(url=url, callback=self.parseScore, meta={'lsName': lsItem['mLsName']})
                         except Exception as e:
                             print('SID:{0}Error:{1}'.format(sid, e))
 
@@ -352,44 +350,6 @@ class zcImmSpider(scrapy.Spider):
             pindex += 1
             url = 'http://liansai.500.com/index.php?c=match&a=getmatch&sid={0}&round={1}'.format(sid, pindex)
             yield Request(url=url, callback=self.parseLsData, meta={'lsName': lsName, 'sid': sid, 'ssName': ssName, 'pageindex': pindex})
-
-    def parseScore(self, response):
-        lsName = response.meta['lsName']
-        # 赛季名称
-        ssName = Selector(response).xpath('//div[@class="ldrop_bd"]//li[@class="ldrop_list_on"]/a/text()').extract()
-        datas = Selector(response).xpath('//table[@class="lstable1 ljifen_top_list_s jTrHover"]//tr').extract()
-        if len(datas) <= 1:
-            return
-        for idx, data in enumerate(datas):
-            if idx == 0:
-                continue
-            item = TeamScoreItem()
-            tds = Selector(text=data).xpath('//td').extract()
-            # 赛季
-            item['mSeason'] = ssName
-            # 提取球队信息
-            item['mLsName'] = lsName
-            sTmp = Selector(text=tds[1]).xpath('//a/text()').extract()[0].replace(' ', '').replace('  ', '')
-            item['mTeamName'] = sTmp
-            item['mTeamFullName'] = Selector(text=tds[1]).xpath('//a/@title').extract()[0].replace(' ', '').replace('  ', '')
-            # 提取比赛信息
-            # 场次
-            stmp = Selector(text=tds[2]).xpath('//text()').extract()[0].replace(' ', '').replace('  ', '')
-            item['mMTimes'] = funs.s2i(stmp)
-            # 胜场次数
-            stmp = Selector(text=tds[3]).xpath('//text()').extract()[0].replace(' ', '').replace('  ', '')
-            item['mWTimes'] = funs.s2i(stmp)
-            # 平场次数
-            stmp = Selector(text=tds[4]).xpath('//text()').extract()[0].replace(' ', '').replace('  ', '')
-            item['mETimes'] = funs.s2i(stmp)
-            # 负场次数
-            stmp = Selector(text=tds[5]).xpath('//text()').extract()[0].replace(' ', '').replace('  ', '')
-            item['mLTimes'] = funs.s2i(stmp)
-            # 胜场次数
-            stmp = Selector(text=tds[6]).xpath('//text()').extract()[0].replace(' ', '').replace('  ', '')
-            item['mScore'] = funs.s2i(stmp)
-
-            yield item
 
     # 获取欧赔数据
     def getOpData(self, response):

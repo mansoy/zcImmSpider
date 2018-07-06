@@ -5,7 +5,6 @@ from .MySqlItems import MatchDataItem
 from .MySqlItems import OuOddsItem
 from .MySqlItems import YaOddsItem
 from .MySqlItems import RqOddsItem
-from .MySqlItems import TeamScoreItem
 from .MySqlItems import SizeOddsItem
 from .MySqlItems import BfOddsItem
 from .MySqlItems import LSItem
@@ -43,8 +42,6 @@ class MySqlPipelines(object):
         try:
             if isinstance(item, MatchDataItem):
                 self.db_pool.runInteraction(self.process_md_item, item)
-            if isinstance(item, TeamScoreItem):
-                self.db_pool.runInteraction(self.process_teamscorc_item, item)
             elif isinstance(item, LSItem):
                 self.db_pool.runInteraction(self.process_ls_item, item)
             elif isinstance(item, OuOddsItem) or isinstance(item, YaOddsItem) or isinstance(item, SizeOddsItem) or isinstance(item, RqOddsItem) or isinstance(item, BfOddsItem):
@@ -53,34 +50,6 @@ class MySqlPipelines(object):
                 # t.start()
         except Exception as e:
             print(e)
-
-    # 球队排名Item处理
-    def process_teamscorc_item(self, cursor, item):
-        try:
-            lsid = item.getLMatchId(cursor, item['mLsName'])
-            if lsid == -1:
-                return
-            item['mLsid'] = lsid
-            tid = item.getTeamId(cursor)
-            if tid == -1:
-                item.addTeamItem(cursor)
-                tid = item.getTeamId(cursor)
-            else:
-                item['mTeamId'] = tid
-                item.updTeamItem(cursor)
-            if tid == -1:
-                return
-            item['mTeamId'] = tid
-            id = item.getLsScoreId(lsid, tid, item['mSeason'])
-            if id == -1:
-                item.addLsScoreItem(cursor)
-            else:
-                item['mid'] = id
-                item.updLsScoreItem(cursor)
-            return True
-        except Exception as e:
-            print(e)
-            return False
 
     # 处理联赛数据
     def process_ls_item(self, cursor, item):
