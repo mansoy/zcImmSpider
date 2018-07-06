@@ -11,7 +11,7 @@
  Target Server Version : 50722
  File Encoding         : 65001
 
- Date: 06/07/2018 17:44:50
+ Date: 06/07/2018 19:08:19
 */
 
 SET NAMES utf8mb4;
@@ -132,48 +132,6 @@ CREATE TABLE `bfodds`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 11113 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Table structure for intermatch
--- ----------------------------
-DROP TABLE IF EXISTS `intermatch`;
-CREATE TABLE `intermatch`  (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `lsid` int(11) NULL DEFAULT NULL COMMENT '联赛编号',
-  `season` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '赛季',
-  `group` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '组名',
-  `stage` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '比赛阶段(如: 小组赛, 16强等)',
-  `index` int(10) NOT NULL COMMENT '序号',
-  `mid` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '比赛编号',
-  `mtid` int(11) NULL DEFAULT NULL COMMENT '主队编号',
-  `mscore` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '主队得分',
-  `dtid` int(11) NULL DEFAULT NULL COMMENT '副队编号',
-  `dscore` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '副队得分',
-  `mdate` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '比赛日期',
-  `mtime` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '比赛时间',
-  `status` int(10) NULL DEFAULT 0 COMMENT '比赛状态',
-  `status_desc` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '状态描述',
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `mid`(`mid`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 65 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Table structure for lsscore
--- ----------------------------
-DROP TABLE IF EXISTS `lsscore`;
-CREATE TABLE `lsscore`  (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `season` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '赛季',
-  `lsid` bigint(20) NULL DEFAULT NULL COMMENT '赛事编号',
-  `tid` bigint(20) NULL DEFAULT NULL COMMENT '球队编号',
-  `mtimes` int(11) NULL DEFAULT NULL COMMENT '参加比赛的场次数量',
-  `wtimes` int(11) NULL DEFAULT NULL COMMENT '胜场次数',
-  `etimes` int(11) NULL DEFAULT NULL COMMENT '平场次数',
-  `ltimes` int(11) NULL DEFAULT NULL COMMENT '负场次数',
-  `score` int(11) NULL DEFAULT NULL COMMENT '积分',
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `lmid`(`lsid`, `tid`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2874 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci COMMENT = '联赛球队积分表' ROW_FORMAT = Dynamic;
-
--- ----------------------------
 -- Table structure for matchdata
 -- ----------------------------
 DROP TABLE IF EXISTS `matchdata`;
@@ -194,6 +152,7 @@ CREATE TABLE `matchdata`  (
   UNIQUE INDEX `mtid`(`mtid`, `dtid`, `mdate`) USING BTREE,
   INDEX `index3`(`mdate`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 47613 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
+
 
 -- ----------------------------
 -- Table structure for ouodds
@@ -348,5 +307,40 @@ CREATE TABLE `yaoddsdetail`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `index2`(`yoid`, `disc`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 552207 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Procedure structure for LsScore_Proc
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `LsScore_Proc`;
+delimiter ;;
+CREATE PROCEDURE `LsScore_Proc`(IN `P_lsName` nvarchar(50),`P_ssName` nvarchar(50))
+BEGIN
+	SELECT ssid, ssname, lsid, lsname, tid, tname, SUM(win) + SUM(draw) + SUM(lose) AS mtimes, SUM(win) AS win, SUM(draw) AS draw, SUM(lose) AS lose, SUM(win) * 3 + SUM(draw) AS scroe
+	FROM
+	(
+		SELECT A.ssid, B.`name` AS ssName, C.id AS lsid, C.`name` AS lsName, A.mtid AS tid, D.`name` AS tName, 
+			CASE WHEN jq > sq THEN 1 ELSE 0 END AS win, CASE WHEN jq = sq THEN 1 ELSE 0 END AS draw, CASE WHEN jq < sq THEN 1 ELSE 0 END AS lose
+		FROM matchdata AS A LEFT JOIN
+			season AS B ON A.ssid = B.id LEFT JOIN
+			b_lmatch AS C ON B.lsid = C.id LEFT JOIN
+			b_team AS D ON A.mtid = D.id LEFT JOIN
+			b_team AS E ON A.dtid = E.id 
+		WHERE C.`name` = P_lsName AND B.`name` = P_ssName AND A.`status` = 3
+		UNION ALL 
+		SELECT A.ssid, B.`name` AS ssName, C.id AS lsid, C.`name` AS lsName, A.dtid AS tid, E.`name` AS tName, 
+			CASE WHEN jq < sq THEN 1 ELSE 0 END AS win, CASE WHEN jq = sq THEN 1 ELSE 0 END AS draw, CASE WHEN jq > sq THEN 1 ELSE 0 END AS lose
+		FROM matchdata AS A LEFT JOIN
+			season AS B ON A.ssid = B.id LEFT JOIN
+			b_lmatch AS C ON B.lsid = C.id LEFT JOIN
+			b_team AS D ON A.mtid = D.id LEFT JOIN
+			b_team AS E ON A.dtid = E.id 
+		WHERE C.`name` = P_lsName AND B.`name` = P_ssName AND A.`status` = 3
+	) AS AA
+	GROUP BY ssid, ssName, lsid, lsName, tid, tName 
+	ORDER BY scroe DESC;
+
+END
+;;
+delimiter ;
 
 SET FOREIGN_KEY_CHECKS = 1;
