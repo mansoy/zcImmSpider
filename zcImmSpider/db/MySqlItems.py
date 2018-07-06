@@ -1,47 +1,51 @@
 import scrapy
 
 
-# 世界杯比赛主表Item
-class InterMatchItem(scrapy.Item):
-    mId = scrapy.Field()
-    # 联赛编号
-    mLsid = scrapy.Field()
-    # 賽季
-    mSeason = scrapy.Field()
-    # 联赛名称
-    mLsName = scrapy.Field()
-    # 组名
-    mGroup = scrapy.Field()
-    # 比赛阶段
-    mStage = scrapy.Field()
-    # 比赛序号
-    mIndex = scrapy.Field()
-    # 比赛编号
+class MatchDataItem(scrapy.Item):
+    mid = scrapy.Field()
+    # 比赛场次编号
     mMid = scrapy.Field()
-    # 主队编号
-    mMtid = scrapy.Field()
+    # 联赛名称
+    mlsName = scrapy.Field()
+    # 联赛编号
+    mlsId = scrapy.Field()
+    # 赛季编号
+    mSsId = scrapy.Field()
+    # 赛季名称
+    mSsName = scrapy.Field()
+    # 主队名称
     mMtName = scrapy.Field()
-    # 主队得分
-    mMScore = scrapy.Field()
-    # 副队编号
-    mDtid = scrapy.Field()
+    mMtFName = scrapy.Field()
+    # 主队编号
+    mMtId = scrapy.Field()
+    # 客队名称
     mDtName = scrapy.Field()
-    # 副队得分
-    mDScore = scrapy.Field()
-    # 比赛日期
-    mMDate = scrapy.Field()
-    # 比赛时间
-    mMTime = scrapy.Field()
+    mDtFName = scrapy.Field()
+    # 客队编号
+    mDtId = scrapy.Field()
+    # 主队进球
+    mQj = scrapy.Field()
+    # 客队进球
+    mQs = scrapy.Field()
     # 比赛状态
+    # TODO 这个状态有几种情况,后续再确定
     mStatus = scrapy.Field()
-    # 比赛状态描述
-    mStatusDesc = scrapy.Field()
+    # 比赛日期
+    mDate = scrapy.Field()
+    # 比赛时间
+    mTime = scrapy.Field()
+    # 分类1
+    mClass1 = scrapy.Field()
+    # 分类2
+    mClass2 = scrapy.Field()
 
+    # 获取联赛编号
     def getLsid(self, cur):
         try:
-            sql = 'SELECT id FROM b_lmatch WHERE name=%(name)s'
+            sql = 'SELECT id FROM b_lmatch WHERE name=%(name)s or fullname=%(fullname)s'
             values = {
-                'name': self['mLsName']
+                'name': self['mlsName'],
+                'fullname': self['mlsName']
             }
 
             cur.execute(sql, values)
@@ -54,12 +58,13 @@ class InterMatchItem(scrapy.Item):
             print(e)
             return -1
 
+    # 增加联赛记录
     def addLsItem(self, cur):
         try:
             sql = 'INSERT INTO b_lmatch(`name`) VALUES(%(name)s)'
             values = {
                 # 'cid': self.mCid,
-                'name': self['mLsName']
+                'name': self['mlsName']
             }
             cur.execute(sql, values)
             return True
@@ -67,28 +72,32 @@ class InterMatchItem(scrapy.Item):
             print(e)
             return False
 
-    def addImItem(self, cur):
-        try:
-            sql = '''
-                INSERT INTO intermatch(`lsid`, `season`, `group`, `stage`, `index`, `mid`, `mtid`, `mscore`, `dtid`, `dscore`, `mdate`, `mtime`, `status`, `status_desc`)
-                VALUES(%(lsid)s, %(season)s, %(group)s, %(stage)s, %(index)s, %(mid)s, %(mtid)s, %(mscore)s, %(dtid)s, %(dscore)s, %(mdate)s, %(mtime)s, %(status)s, %(status_desc)s)                
-                '''
 
+    # 获取赛季ID
+    def getSsid(self, cur):
+        try:
+            sql = 'SELECT id FROM season WHERE name=%(name)s and lsid=%(lsid)s'
             values = {
-                'lsid': self['mLsid'],
-                'season': self['mSeason'],
-                'group': self['mGroup'],
-                'stage': self['mStage'],
-                'index': self['mIndex'],
-                'mid': self['mMid'],
-                'mtid': self['mMtid'],
-                'mscore': self['mMScore'],
-                'dtid': self['mDtid'],
-                'dscore': self['mDScore'],
-                'mdate': self['mMDate'],
-                'mtime': self['mMTime'],
-                'status': self['mStatus'],
-                'status_desc': self['mStatusDesc']
+                'name': self['mSsName'],
+                'lsid': self['mlsId']
+            }
+
+            cur.execute(sql, values)
+            datas = cur.fetchall()
+            if len(datas) > 0:
+                return datas[0]['id']
+            else:
+                return -1
+        except Exception as e:
+            print(e)
+            return -1
+
+    def addSsItem(self, cur):
+        try:
+            sql = 'INSERT INTO season(`lsid`, `name`) VALUES(%(lsid)s, %(name)s)'
+            values = {
+                'name': self['mSsName'],
+                'lsid': self['mlsId']
             }
             cur.execute(sql, values)
             return True
@@ -96,45 +105,13 @@ class InterMatchItem(scrapy.Item):
             print(e)
             return False
 
-    def updImItem(self, cur):
+    # 获取球队ID
+    def getTeamId(self, cur, tname, tfname):
         try:
-            sql = '''
-                update intermatch 
-                set `lsid`=%(lsid)s, `season`=%(season)s, `group`=%(group)s, `stage`=%(stage)s, `mid`=%(mid)s, `mtid`=%(mtid)s, `mscore`=%(mscore)s,
-                    `dtid`=%(dtid)s, `dscore`=%(dscore)s, `mdate`=%(mdate)s, 
-                    `mtime`=%(mtime)s, `status`=%(status)s, `status_desc`=%(status_desc)s
-                where `id`=%(id)s
-                '''
-
+            sql = 'SELECT id FROM b_team WHERE name=%(name)s or fullname=%(name)s or name=%(fullname)s or fullname=%(fullname)s'
             values = {
-                'id': self['mId'],
-                'lsid': self['mLsid'],
-                'season': self['mSeason'],
-                'group': self['mGroup'],
-                'stage': self['mStage'],
-                'mid': self['mMid'],
-                'mtid': self['mMtid'],
-                'mscore': self['mMScore'],
-                'dtid': self['mDtid'],
-                'dscore': self['mDScore'],
-                'mdate': self['mMDate'],
-                'mtime': self['mMTime'],
-                'status': self['mStatus'],
-                'status_desc': self['mStatusDesc']
-            }
-            cur.execute(sql, values)
-            return True
-        except Exception as e:
-            print(e)
-            return False
-
-    def getImId(self, cur):
-        try:
-            sql = '''
-                select * from intermatch where `index`=%(index)s
-                '''
-            values = {
-                'index': self['mIndex']
+                'name': tname,
+                'fullname': tfname
             }
             cur.execute(sql, values)
             datas = cur.fetchall()
@@ -146,29 +123,14 @@ class InterMatchItem(scrapy.Item):
             print(e)
             return -1
 
-    def getTeamId(self, cur, tname):
-        try:
-            sql = 'SELECT id FROM b_team WHERE name=%(name)s'
-            values = {
-                'name': tname
-            }
-            cur.execute(sql, values)
-            datas = cur.fetchall()
-            if len(datas) > 0:
-                return datas[0]['id']
-            else:
-                return -1
-        except Exception as e:
-            print(e)
-            return -1
-
-    def addTeamItem(self, cur, tname):
+    # 增加球队记录
+    def addTeamItem(self, cur, tname, tfname):
         try:
             sql = 'INSERT INTO b_team(`name`, `fullname`, `remark`) VALUES(%(name)s, %(fullname)s, %(remark)s)'
             values = {
                 'name': tname,
                 'fullname': tname,
-                'remark': ''
+                'remark': tfname
             }
             cur.execute(sql, values)
             return True
@@ -176,13 +138,105 @@ class InterMatchItem(scrapy.Item):
             print(e)
             return False
 
+    # 更新球队记录
     def updTeamItem(self, cur, tid, tname, ftname):
         try:
-            sql = 'UPDATE b_team SET `name`=%(name)s, `fullname`=%(fullname)s WHERE id=%(id)s'
+            sql = '''     
+                UPDATE b_team 
+                SET `fullname`=CASE WHEN LENGTH(%(fullname)s)>LENGTH(fullname) THEN %(fullname)s ELSE fullname END 
+                WHERE id=%(id)s;
+                '''
             values = {
                 'id': tid,
-                'name': tname,
                 'fullname': ftname
+            }
+            cur.execute(sql, values)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    # 获取比赛编号
+    def getMdid(self, cur):
+        try:
+            if self['mMid'] != '':
+                sql = '''
+                    select id from matchdata where `mid`=%(mid)s
+                    '''
+                values = {
+                    'mid': self['mMid']
+                }
+            else:
+                sql = '''
+                    select id from matchdata where `mtid`=%(mtid)s and `dtid`=%(dtid)s and `mdate`=%(mdate)s
+                    '''
+                values = {
+                    'mtid': self['mMtId'],
+                    'dtid': self['mDtId'],
+                    'mdate': self['mDate']
+                }
+            cur.execute(sql, values)
+            datas = cur.fetchall()
+            if len(datas) > 0:
+                return datas[0]['id']
+            else:
+                return -1
+        except Exception as e:
+            print(e)
+            return -1
+
+    # 增加比赛记录
+    def addMdItem(self, cur):
+        try:
+            sql = '''
+                INSERT INTO matchdata(`mid`, `ssid`, `mtid`, `jq`, `dtid`, `sq`, `mdate`, `mtime`, `status`, `class1`, `class2`)
+                VALUES(%(mid)s, %(ssid)s, %(mtid)s, %(jq)s, %(dtid)s, %(sq)s, %(mdate)s, %(mtime)s, %(status)s, %(class1)s, %(class2)s)                
+                '''
+
+            values = {
+                'mid': self['mMid'],
+                'ssid': self['mSsId'],
+                'mtid': self['mMtId'],
+                'jq': self['mQj'],
+                'dtid': self['mDtId'],
+                'sq': self['mQs'],
+                'mdate': self['mDate'],
+                'mtime': self['mTime'],
+                'status': self['mStatus'],
+                'class1': self['mClass1'],
+                'class2': self['mClass2']
+            }
+            cur.execute(sql, values)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    # 更新比赛记录
+    def updMdItem(self, cur):
+        try:
+            sql = '''
+                UPDATE matchdata
+                SET `mid`=%(mid)s, `ssid`=%(ssid)s, `mtid`=%(mtid)s, `jq`=%(jq)s, 
+                    `dtid`=%(dtid)s, `sq`=%(sq)s, `mdate`=%(mdate)s, `mtime`=%(mtime)s, 
+                    `status`=%(status)s, `class1`= CASE WHEN %(class1)s='' THEN class1 ELSE %(class1)s END, 
+                    `class2`=CASE WHEN %(class2)s='' THEN class2 ELSE %(class2)s END  
+                WHERE `id` = %(id)s            
+                '''
+
+            values = {
+                'id': self['mid'],
+                'mid': self['mMid'],
+                'ssid': self['mSsId'],
+                'mtid': self['mMtId'],
+                'jq': self['mQj'],
+                'dtid': self['mDtId'],
+                'sq': self['mQs'],
+                'mdate': self['mDate'],
+                'mtime': self['mTime'],
+                'status': self['mStatus'],
+                'class1': self['mClass1'],
+                'class2': self['mClass2']
             }
             cur.execute(sql, values)
             return True
@@ -204,6 +258,67 @@ class LSItem(scrapy.Item):
     mLsName = scrapy.Field()
     mLsFullName = scrapy.Field()
 
+    def getAreaId(self, cur):
+        try:
+            sql = 'SELECT id FROM b_area WHERE name=%(name)s'
+            values = {
+                'name': self['mAName']
+            }
+
+            cur.execute(sql, values)
+            datas = cur.fetchall()
+            if len(datas) > 0:
+                return datas[0]['id']
+            else:
+                return -1
+        except Exception as e:
+            print(e)
+            return -1
+
+    def addAreaItem(self, cur):
+        try:
+            sql = 'INSERT INTO b_area(`name`, `fullname`, `remark`) VALUES(%(name)s, %(fullname)s, %(remark)s)'
+            values = {
+                'name': self['mAName'],
+                'fullname': self['mAName'],
+                'remark': ''
+            }
+            cur.execute(sql, values)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    def getCountryId(self, cur):
+        try:
+            sql = 'SELECT id FROM b_country WHERE name=%(name)s'
+            values = {
+                'name': self['mCName']
+            }
+            cur.execute(sql, values)
+            datas = cur.fetchall()
+            if len(datas) > 0:
+                return datas[0]['id']
+            else:
+                return -1
+        except Exception as e:
+            print(e)
+            return -1
+
+    def addCountryItem(self, cur):
+        try:
+            sql = 'INSERT INTO b_country(`aid`, `name`, `desc`) VALUES(%(aid)s, %(name)s, %(desc)s)'
+            values = {
+                'aid': self['mAid'],
+                'name': self['mCName'],
+                'remark': ''
+            }
+            cur.execute(sql, values)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
     def getLsid(self, cur):
         try:
             sql = 'SELECT id FROM b_lmatch WHERE name=%(name)s'
@@ -221,76 +336,35 @@ class LSItem(scrapy.Item):
             print(e)
             return -1
 
-    def getTeamId(self, cur, tname):
+    def addLsItem(self, cur):
         try:
-            sql = 'SELECT id FROM b_team WHERE name=%(name)s'
+            sql = 'INSERT INTO b_lmatch(`cid`, `name`, `fullname`, `remark`) VALUES(%(cid)s, %(name)s, %(fullname)s, %(remark)s)'
             values = {
-                'name': tname
-            }
-            cur.execute(sql, values)
-            datas = cur.fetchall()
-            if len(datas) > 0:
-                return datas[0]['id']
-            else:
-                return -1
-        except Exception as e:
-            print(e)
-            return -1
-
-    def addTeamItem(self, cur, tname):
-        try:
-            sql = 'INSERT INTO b_team(`name`, `fullname`, `remark`) VALUES(%(name)s, %(fullname)s, %(remark)s)'
-            values = {
-                'name': tname,
-                'fullname': tname,
+                'cid': self['mCid'],
+                'name': self['mLsName'],
+                'fullname': self['mLsFullName'],
                 'remark': ''
             }
             cur.execute(sql, values)
             return True
         except Exception as e:
             print(e)
-            return False
+            return -1
 
-    def updTeamItem(self, cur, tid, tname, ftname):
+    def updLsItem(self, cur):
         try:
-            sql = 'UPDATE b_team SET `name`=%(name)s, `fullname`=%(fullname)s WHERE id=%(id)s'
+            sql = 'UPDATE b_lmatch set cid={0}, name="{1}", fullname="{2}" WHERE id={3};'.format(self['mCid'], self['mLsName'], self['mLsFullName'], self['mLsid'])
             values = {
-                'id': tid,
-                'name': tname,
-                'fullname': ftname
+                # 'cid': item['mCid'],
+                # 'name': item['mLsName'],
+                # 'fullname': item['mLsFullName'],
+                # 'id': item['mLsid']
             }
             cur.execute(sql, values)
             return True
         except Exception as e:
             print(e)
             return False
-
-    def get_insert_sql(self):
-        sql = 'INSERT INTO b_lmatch(`cid`, `name`, `fullname`, `remark`) VALUES(%(cid)s, %(name)s, %(fullname)s, %(remark)s)'
-        values = {
-            'cid': self.mCid,
-            'name': self.mLsName,
-            'fullname': self.mLsFullName,
-            'remark': ''
-        }
-        return sql, values
-
-    def get_update_sql(self):
-        sql = 'UPDATE b_lmatch set cid={0}, name="{1}", fullname="{2}" WHERE id={3};'.format(self.mCid, self.mLsName, self.mLsFullName, self.mLsid)
-        values = {
-            # 'cid': item['mCid'],
-            # 'name': item['mLsName'],
-            # 'fullname': item['mLsFullName'],
-            # 'id': item['mLsid']
-        }
-        return sql, values
-
-    def get_sel_sql(self):
-        sql = 'SELECT id FROM b_lmatch WHERE name=%(name)s'
-        values = {
-            'name': self.mLsName
-        }
-        return sql, values
 
 
 # 球队排名Item

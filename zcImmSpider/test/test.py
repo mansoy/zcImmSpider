@@ -1,9 +1,9 @@
-# import json
+s = 'http://liansai.500.com/zuqiu-4838/jifen-13090/'
 
-
-jsParam = {}
-jsParam['startDate'] = '2010-01-01'
-jsParam['endDate'] = '2018-01-01'
-
-params = 'params={0}'.format(jsParam)
-print(params)
+i = s.find('jifen-')
+print(i)
+s = s[i+6:][:-1]
+print(s)
+# s = s[:10]
+s = s[-5:]
+print(s)

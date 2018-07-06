@@ -1,7 +1,7 @@
 import logging
 import pymysql
 from twisted.enterprise import adbapi
-from .MySqlItems import InterMatchItem
+from .MySqlItems import MatchDataItem
 from .MySqlItems import OuOddsItem
 from .MySqlItems import YaOddsItem
 from .MySqlItems import RqOddsItem
@@ -41,12 +41,12 @@ class MySqlPipelines(object):
 
     def process_item(self, item, spider):
         try:
+            if isinstance(item, MatchDataItem):
+                self.db_pool.runInteraction(self.process_md_item, item)
             if isinstance(item, TeamScoreItem):
                 self.db_pool.runInteraction(self.process_teamscorc_item, item)
             elif isinstance(item, LSItem):
                 self.db_pool.runInteraction(self.process_ls_item, item)
-            elif isinstance(item, InterMatchItem):
-                self.db_pool.runInteraction(self.process_im_item, item)
             elif isinstance(item, OuOddsItem) or isinstance(item, YaOddsItem) or isinstance(item, SizeOddsItem) or isinstance(item, RqOddsItem) or isinstance(item, BfOddsItem):
                 self.db_pool.runInteraction(self.process_odds_item, item)
                 # t = threading.Thread(target=self.process_odds_item, args=(item,))
@@ -83,36 +83,36 @@ class MySqlPipelines(object):
             return False
 
     # 处理联赛数据
-    def process_ls_item(self, item):
+    def process_ls_item(self, cursor, item):
         try:
-            # aid = MsDBModel.getAreaId(item['mAName'])
-            # if aid == -1:
-            #     MsDBModel.addAreaItem(item)
-            #     aid = MsDBModel.getAreaId(item['mAName'])
-            # if aid == -1:
-            #     return False
-            # item['mAid'] = aid
-            # cid = MsDBModel.getCountryId(item['mCName'])
-            # if cid == -1:
-            #     MsDBModel.addCountryItem(item)
-            #     cid = MsDBModel.getCountryId(item['mCName'])
-            # if cid == -1:
-            #     return False
-            # item['mCid'] = cid
-            # lmid = MsDBModel.getLMatchId(item['mLsName'])
-            # if lmid == -1:
-            #     if MsDBModel.addLMatchItem(item):
-            #         return True
-            # else:
-            #     item['mLsid'] = lmid
-            #     MsDBModel.updLMatchItem(item)
-            #     return True
+            aid = item.getAreaId(cursor)
+            if aid == -1:
+                item.addAreaItem(cursor)
+                aid = item.getAreaId(cursor)
+            if aid == -1:
+                return False
+            item['mAid'] = aid
+            cid = item.getCountryId(cursor)
+            if cid == -1:
+                item.addCountryItem(cursor)
+                cid = item.getCountryId(cursor)
+            if cid == -1:
+                return False
+            item['mCid'] = cid
+            lmid = item.getLsid(cursor)
+            if lmid == -1:
+                if item.addLsItem(cursor):
+                    return True
+            else:
+                item['mLsid'] = lmid
+                item.updLsItem(cursor)
+                return True
             return False
         except Exception as e:
             print(e)
             return False
 
-    def process_im_item(self, cursor, item):
+    def process_md_item(self, cursor, item):
         try:
             lsid = item.getLsid(cursor)
             if lsid == -1:
@@ -120,30 +120,42 @@ class MySqlPipelines(object):
                 lsid = item.getLsid(cursor)
             if lsid == -1:
                 return
-
-            item['mLsid'] = lsid
-            mtid = item.getTeamId(cursor, item['mMtName'])
-            if mtid == -1:
-                item.addTeamItem(cursor, item['mMtName'])
-                mtid = item.getTeamId(cursor, item['mMtName'])
-            if mtid == -1:
+            item['mlsId'] = lsid
+            ssid = item.getSsid(cursor)
+            if ssid == -1:
+                item.addSsItem(cursor)
+                ssid = item.getSsid(cursor)
+            if ssid == -1:
                 return
-            item['mMtid'] = mtid
-
-            dtid = item.getTeamId(cursor, item['mDtName'])
-            if dtid == -1:
-                item.addTeamItem(cursor, item['mDtName'])
-                dtid = item.getTeamId(cursor, item['mDtName'])
-            if dtid == -1:
-                return
-            item['mDtid'] = dtid
-
-            imid = item.getImId(cursor)
-            if imid == -1:
-                item.addImItem(cursor)
+            item['mSsId'] = ssid
+            mtid = item.getTeamId(cursor, item['mMtName'], item['mMtFName'])
+            if mtid == -1:
+                item.addTeamItem(cursor, item['mMtName'], item['mMtFName'])
+                mtid = item.getTeamId(cursor, item['mMtName'], item['mMtFName'])
             else:
-                item['mId'] = imid
-                return item.updImItem(cursor)
+                item['mMtId'] = mtid
+                item.updTeamItem(cursor, mtid, item['mMtName'], item['mMtFName'])
+            if mtid == -1:
+                return
+            item['mMtId'] = mtid
+
+            dtid = item.getTeamId(cursor, item['mDtName'], item['mDtFName'])
+            if dtid == -1:
+                item.addTeamItem(cursor, item['mDtName'], item['mDtFName'])
+                dtid = item.getTeamId(cursor, item['mDtName'], item['mMtFName'])
+            else:
+                item['mDtId'] = dtid
+                item.updTeamItem(cursor, dtid, item['mDtName'], item['mDtFName'])
+            if dtid == -1:
+                return
+            item['mDtId'] = dtid
+
+            imid = item.getMdid(cursor)
+            if imid == -1:
+                item.addMdItem(cursor)
+            else:
+                item['mid'] = imid
+                return item.updMdItem(cursor)
             return True
         except Exception as e:
             print(e)
