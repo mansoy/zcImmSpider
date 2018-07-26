@@ -9,6 +9,7 @@ from ..db.MySqlItems import MatchDataItem
 from ..db.MySqlItems import RqOddsItem
 from ..db.MySqlItems import BfOddsItem
 from ..db.MySqlItems import OuOddsItem
+from ..db.MySqlItems import ImmOuOddsItem
 from ..db.MySqlItems import YaOddsItem
 from ..db.MySqlItems import SizeOddsItem
 from ..db.MySqlItems import YaOddsDetailItem
@@ -45,6 +46,8 @@ class zcImmSpider(scrapy.Spider):
             elif self.wtype == cf.WT_OUGUAN or self.wtype == cf.WT_OUCUP:
                 url = 'http://liansai.500.com/'
                 yield Request(url, self.parseCupMatch, meta={'lsName': self.params['lsName']})
+            elif self.wtype == cf.WT_IMM_OU_ODDS:
+                pass
         except Exception as e:
             print(e)
 
@@ -414,10 +417,40 @@ class zcImmSpider(scrapy.Spider):
                 item['mKaili22'] = funs.s2f(numdatas[18].strip())
                 item['mKaili23'] = funs.s2f(numdatas[19].strip())
 
-                yield item
+                # yield item
+
+                if item['mlyName'] == '立博':
+                    cid = st.xpath('//tr/@id').extract()[0]
+                    ctime = st.xpath('//tr/@data-time').extract()[0]
+                    # 解析明细数据
+                    stimpstamp = int(arrow.now().float_timestamp * 1000)
+                    url = 'http://odds.500.com/fenxi1/json/ouzhi.php?_={0}&fid={1}&cid={2}&r=1&time={3}&type=europe'.format(stimpstamp, mid, cid, ctime)
+                    yield Request(url=url, callback=self.parseImmOuOdds, meta={'mid': mid, 'lyName': item['mlyName']})
                 # self.logger.error('[Parse Ok][{0}]Op Data[{1} - {2}]'.format(response.meta['date'], mid, lmName))
             except Exception as e:
                 self.logger.error('[Parse Error][{0} - {1}]Parse OuOdds Error{2}'.format(spdate, mid, e))
+
+    # 解析即时欧赔明细
+    def parseImmOuOdds(self, response):
+        mid = response.meta['mid']
+        lyName = response.meta['lyName']
+        datas = json.loads(response.body)
+        for data in datas:
+            try:
+                item = ImmOuOddsItem()
+                item['mMid'] = mid
+                item['mlyName'] = lyName
+                item['mOWin'] = funs.s2f(data[0])
+                item['mODraw'] = funs.s2f(data[1])
+                item['mOLose'] = funs.s2f(data[2])
+                item['mRetRatio'] = funs.s2f(data[3])
+                item['mKWin'] = 0.0
+                item['mKDraw'] = 0.0
+                item['mKLose'] = 0.0
+                item['mCDate'] = data[4]
+                yield item
+            except Exception as e:
+                self.logger.error('[Parse Error][{0} - {1}]GetYaOdds Error{2}'.format(mid, lyName, e))
 
     # 获取亚赔数据
     def getYpData(self, response):

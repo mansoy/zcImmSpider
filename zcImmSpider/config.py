@@ -10,3 +10,6 @@ WT_OUGUAN = 3
 WT_OUCUP = 4
 # 世界杯
 WT_WORLDCUP = 5
+# 抓取欧赔即时赔率
+WT_IMM_OU_ODDS = 6
+

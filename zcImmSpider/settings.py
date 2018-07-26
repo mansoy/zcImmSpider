@@ -16,7 +16,7 @@ NEWSPIDER_MODULE = 'zcImmSpider.spiders'
 
 MYSQL_HOST = '114.116.22.68'
 MYSQL_USER = 'remoteuser'
-MYSQL_PASSWORD = 'TX_7758521'
+MYSQL_PASSWORD = 'TX_123456'
 MYSQL_PORT = 3306
 MYSQL_DB = 'zc_data'
 
@@ -62,7 +62,7 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.contrib.downloadermiddleware.useragent.UserAgentMiddleware': None,  # 必需 ,禁用默认的middleware
     # 'scrapy.contrib.downloadermiddleware.httpproxy.HttpProxyMiddleware': 300,
     'zcImmSpider.middlewares.MsAgentMiddleware': 100,
-    'zcImmSpider.middlewares.MsHttoProxyMiddleware': 110,
+    # 'zcImmSpider.middlewares.MsHttoProxyMiddleware': 110,
 }
 
 # Enable or disable extensions

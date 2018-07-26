@@ -1087,3 +1087,108 @@ class SizeOddsItem(scrapy.Item):
             return True
         except Exception as e:
             print(e)
+
+
+# 欧赔Item
+class ImmOuOddsItem(scrapy.Item):
+    mId = scrapy.Field()
+    # 比赛场次编号
+    mMid = scrapy.Field()
+    # 博彩公司名称
+    mlyName = scrapy.Field()
+    # 博彩公司编号
+    mlyId = scrapy.Field()
+    # 即时欧赔
+    mOWin = scrapy.Field()
+    mODraw = scrapy.Field()
+    mOLose = scrapy.Field()
+    # 返还率
+    mRetRatio = scrapy.Field()
+    # 即时凯利
+    mKWin = scrapy.Field()
+    mKDraw = scrapy.Field()
+    mKLose = scrapy.Field()
+    mCDate = scrapy.Field()
+
+    def getLyId(self, cur):
+        try:
+            sql = 'SELECT id FROM b_lottery WHERE name=%(name)s'
+            values = {
+                'name': self['mlyName']
+            }
+            cur.execute(sql, values)
+            datas = cur.fetchall()
+            if len(datas) > 0:
+                return datas[0]['id']
+            else:
+                return -1
+        except Exception as e:
+            print(e)
+
+    def getOddsId(self, cur):
+        try:
+            sql = '''
+                SELECT id FROM immouodds WHERE mid=%(mid)s and lyid=%(lyid)s and cdate=%(cdate)s
+                '''
+            values = {
+                'mid': self['mMid'],
+                'lyid': self['mlyId'],
+                'cdate': self['mCDate']
+            }
+            cur.execute(sql, values)
+            datas = cur.fetchall()
+            if len(datas) > 0:
+                return datas[0]['id']
+            else:
+                return -1
+        except Exception as e:
+            print(e)
+
+    def addOddsItem(self, cur):
+        try:
+            sql = '''
+                INSERT INTO immouodds(`mid`, `lyid`, `owin`, `odraw`, `olose`, `retratio`, `kwin`, `kdraw`, `klose`, `cdate`) 
+                VALUES(%(mid)s, %(lyid)s, %(owin)s, %(odraw)s, %(olose)s, %(retratio)s, %(kwin)s, %(kdraw)s, %(klose)s, %(cdate)s)
+                '''
+            values = {
+                'mid': self['mMid'],
+                'lyid': self['mlyId'],
+                'owin': self['mOWin'],
+                'odraw': self['mODraw'],
+                'olose': self['mOLose'],
+                'retratio': self['mRetRatio'],
+                'kwin': self['mKWin'],
+                'kdraw': self['mKDraw'],
+                'klose': self['mKLose'],
+                'cdate': self['mCDate']
+            }
+            cur.execute(sql, values)
+            return True
+        except Exception as e:
+            print(e)
+
+    def updOddsItem(self, cur):
+        try:
+            sql = '''
+                    UPDATE immouodds
+                    SET `mid`=%(mid)s, `lyid`=%(lyid)s, `owin`=%(owin)s, `odraw`=%(odraw)s, `olose`=%(olose)s,
+                        `retratio`=%(retratio)s, `kwin`=%(kwin)s, `kdraw`=%(kdraw)s, `klose`=%(klose)s, `cdate`=%(cdate)s
+                    WHERE `id`=%(id)s 
+                    '''
+            values = {
+                'id': self['mId'],
+                'mid': self['mMid'],
+                'lyid': self['mlyId'],
+                'owin': self['mOWin'],
+                'odraw': self['mODraw'],
+                'olose': self['mOLose'],
+                'retratio': self['mRetRatio'],
+                'kwin': self['mKWin'],
+                'kdraw': self['mKDraw'],
+                'klose': self['mKLose'],
+                'cdate': self['mCDate']
+            }
+            cur.execute(sql, values)
+            return True
+        except Exception as e:
+            print(e)

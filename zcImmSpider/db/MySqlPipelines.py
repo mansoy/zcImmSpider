@@ -3,6 +3,7 @@ import pymysql
 from twisted.enterprise import adbapi
 from .MySqlItems import MatchDataItem
 from .MySqlItems import OuOddsItem
+from .MySqlItems import ImmOuOddsItem
 from .MySqlItems import YaOddsItem
 from .MySqlItems import RqOddsItem
 from .MySqlItems import SizeOddsItem
@@ -44,7 +45,7 @@ class MySqlPipelines(object):
                 self.db_pool.runInteraction(self.process_md_item, item)
             elif isinstance(item, LSItem):
                 self.db_pool.runInteraction(self.process_ls_item, item)
-            elif isinstance(item, OuOddsItem) or isinstance(item, YaOddsItem) or isinstance(item, SizeOddsItem) or isinstance(item, RqOddsItem) or isinstance(item, BfOddsItem):
+            elif isinstance(item, OuOddsItem) or isinstance(item, ImmOuOddsItem) or isinstance(item, YaOddsItem) or isinstance(item, SizeOddsItem) or isinstance(item, RqOddsItem) or isinstance(item, BfOddsItem):
                 self.db_pool.runInteraction(self.process_odds_item, item)
                 # t = threading.Thread(target=self.process_odds_item, args=(item,))
                 # t.start()
