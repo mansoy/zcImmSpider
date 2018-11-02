@@ -61,6 +61,7 @@ DOWNLOAD_DELAY = 0.25
 DOWNLOADER_MIDDLEWARES = {
     'scrapy.contrib.downloadermiddleware.useragent.UserAgentMiddleware': None,  # 必需 ,禁用默认的middleware
     # 'scrapy.contrib.downloadermiddleware.httpproxy.HttpProxyMiddleware': 300,
+    # 'scrapy.contrib.downloadermiddleware.redirect.RedirectMiddleware': None,
     'zcImmSpider.middlewares.MsAgentMiddleware': 100,
     # 'zcImmSpider.middlewares.MsHttoProxyMiddleware': 110,
 }

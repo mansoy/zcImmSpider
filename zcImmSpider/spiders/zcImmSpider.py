@@ -38,8 +38,8 @@ class zcImmSpider(scrapy.Spider):
                 eData = arrow.get(self.params['endDate'])
                 for day in arrow.Arrow.range('day', sDate, eData.shift(days=-1)):
                     ssdate = day.format('YYYY-MM-DD')
-                    url = 'http://trade.500.com/jczq/?date={0}'.format(ssdate)
-                    yield Request(url, self.parseHistory, meta={'year': ssdate[4:], 'date': ssdate, 'ou': self.params['ou'], 'ya': self.params['ya'], 'dx': self.params['dx'], 'rq': self.params['rq'], 'bf': self.params['bf']})
+                    url = 'http://live.500.com/?e={0}'.format(ssdate)
+                    yield Request(url, self.parseHistory, meta={'year': ssdate[:4], 'date': ssdate, 'ou': self.params['ou'], 'ya': self.params['ya'], 'dx': self.params['dx'], 'rq': self.params['rq'], 'bf': self.params['bf']})
             elif self.wtype == cf.WT_LIANSAI:
                 url = 'http://liansai.500.com/'
                 yield Request(url=url, callback=self.parseLsscore)
@@ -54,7 +54,7 @@ class zcImmSpider(scrapy.Spider):
     # 获取赛季名称
     def getSeason(self, data):
         try:
-            url = Selector(text=data).xpath('//span[@class="league"]/a/@href').extract()[0]
+            url = Selector(text=data).xpath('//td[@class="ssbox_01"]/@href').extract()[0]
             response = requests.get(url)
             ret = Selector(text=response.text).xpath('//div[@class="ldrop_bd"]//li[@class="ldrop_list_on"]/a/text()').extract()[0]
             return ret
@@ -63,36 +63,40 @@ class zcImmSpider(scrapy.Spider):
             return ''
 
     def parseHistory(self, response):
-        datas = Selector(response).xpath('//tr[@isend="1" or @isend="0"]').extract()
+        datas = Selector(response).xpath('//tr[@fid]').extract()
         for data in datas:
             try:
                 st = Selector(text=data)
                 item = MatchDataItem()
                 item['mMid'] = st.xpath('//tr/@fid').extract()[0]
-                item['mlsName'] = st.xpath('//tr/@lg').extract()[0].replace(' ', '').replace('　', '')
+                item['mlsName'] = st.xpath('//td[@class="ssbox_01"]/a/text()').extract()[0].replace(' ', '').replace('　', '')
                 item['mSsName'] = self.getSeason(data)
-                item['mMtName'] = st.xpath('//td[@class="left_team"]/a/text()').extract()[0].replace(' ', '')
-                item['mMtFName'] = st.xpath('//td[@class="left_team"]/a/@title').extract()[0].replace(' ', '')
-                item['mDtName'] = st.xpath('//td[@class="right_team"]/a/text()').extract()[0].replace(' ', '')
-                item['mDtFName'] = st.xpath('//td[@class="right_team"]/a/@title').extract()[0].replace(' ', '')
-                item['mDate'] = st.xpath('//tr/@pdate').extract()[0]
-
-                isend = funs.s2i(st.xpath('//tr/@isend').extract()[0], 0)
+                item['mMtName'] = st.xpath('//td[@class="p_lr01" and @align="left"]/a/text()').extract()[0].replace(' ', '')
+                item['mMtFName'] = ''
+                item['mDtName'] = st.xpath('//td[@class="p_lr01" and @align="right"]/a/text()').extract()[0].replace(' ', '')
+                item['mDtFName'] = ''
+                # 提取比赛日期
+                tmpDate = st.xpath('//tr[@fid]/td/text()').extract()[2]
+                if tmpDate:
+                    item['mDate'] = '{0}-{1}'.format(response.meta['year'], tmpDate[:5])
+                    item['mTime'] = tmpDate[-5:]
+                isend = funs.s2i(st.xpath('//tr/@status').extract()[0], 0)
 
                 item['mStatus'] = 0 if isend == 0 else 3
+                # 只爬去比赛已完成的数据
+                if item['mStatus'] != 3:
+                    continue
                 # 提取比赛得分
-                tmpNode = st.xpath('//a[@class="score"]/text()').extract()
-                if len(tmpNode) > 0:
-                    clst = tmpNode[0].split(':')
-                    item['mQj'] = funs.s2i(clst[0])  # 进球数
-                    item['mQs'] = funs.s2i(clst[1])  # 失球数
+                tmpNode = st.xpath('//div[@class="pk"]/a/text()').extract()
+                if len(tmpNode) >= 3:
+                    item['mQj'] = funs.s2i(tmpNode[0])  # 进球数
+                    item['mQs'] = funs.s2i(tmpNode[2])  # 失球数
                 else:
                     item['mQj'] = 0
                     item['mQs'] = 0
 
 
-                # 提取比赛时间
-                item['mTime'] = st.xpath('//span[@class="match_time"]/text()').extract()[0]
+
 
                 item['mClass1'] = ''
                 item['mClass2'] = ''
@@ -363,9 +367,11 @@ class zcImmSpider(scrapy.Spider):
                 '//div[@class="table_btm"]//span[@id="nowcnum"]/text()').extract()
             lyCount = funs.s2i(tmpNode[0])
             pageCount = lyCount // 30 + (1 if lyCount % 30 > 0 else 0)
-            for i in range(pageCount):
-                url = 'http://odds.500.com/fenxi1/ouzhi.php?id={0}&ctype=1&start={1}&r=1&style=0&guojia=0&chupan=1'.format(mid, i * 30)
-                yield Request(url=url, callback=self.parseOpData, meta={'mid': mid, 'date': spdate})
+            # TODO 暂时只爬第一页博彩数据
+            # for i in range(pageCount):
+            i = 0
+            url = 'http://odds.500.com/fenxi1/ouzhi.php?id={0}&ctype=1&start={1}&r=1&style=0&guojia=0&chupan=1'.format(mid, i * 30)
+            yield Request(url=url, callback=self.parseOpData, meta={'mid': mid, 'date': spdate})
         except Exception as e:
             self.logger.error('[Parse Error][{0} - {1}]GetOuOdds Error{2}'.format(spdate, mid, e))
 
@@ -419,13 +425,13 @@ class zcImmSpider(scrapy.Spider):
 
                 # yield item
 
-                if item['mlyName'] == '立博':
-                    cid = st.xpath('//tr/@id').extract()[0]
-                    ctime = st.xpath('//tr/@data-time').extract()[0]
-                    # 解析明细数据
-                    stimpstamp = int(arrow.now().float_timestamp * 1000)
-                    url = 'http://odds.500.com/fenxi1/json/ouzhi.php?_={0}&fid={1}&cid={2}&r=1&time={3}&type=europe'.format(stimpstamp, mid, cid, ctime)
-                    yield Request(url=url, callback=self.parseImmOuOdds, meta={'mid': mid, 'lyName': item['mlyName']})
+                # if item['mlyName'] == '立博' or item['mlyName'] == '必发':
+                cid = st.xpath('//tr/@id').extract()[0]
+                ctime = st.xpath('//tr/@data-time').extract()[0]
+                # 解析明细数据
+                stimpstamp = int(arrow.now().float_timestamp * 1000)
+                url = 'http://odds.500.com/fenxi1/json/ouzhi.php?_={0}&fid={1}&cid={2}&r=1&time={3}&type=europe'.format(stimpstamp, mid, cid, ctime)
+                yield Request(url=url, callback=self.parseImmOuOdds, meta={'mid': mid, 'lyName': item['mlyName']})
                 # self.logger.error('[Parse Ok][{0}]Op Data[{1} - {2}]'.format(response.meta['date'], mid, lmName))
             except Exception as e:
                 self.logger.error('[Parse Error][{0} - {1}]Parse OuOdds Error{2}'.format(spdate, mid, e))
