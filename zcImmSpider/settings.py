@@ -14,7 +14,7 @@ BOT_NAME = 'zcImmSpider'
 SPIDER_MODULES = ['zcImmSpider.spiders']
 NEWSPIDER_MODULE = 'zcImmSpider.spiders'
 
-MYSQL_HOST = '114.116.22.68'
+MYSQL_HOST = 'XXX.XXX.XXX.XXX'
 MYSQL_USER = 'remoteuser'
 MYSQL_PASSWORD = 'TX_123456'
 MYSQL_PORT = 3306
